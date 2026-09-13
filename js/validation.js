@@ -1,3 +1,8 @@
+/* ================================================================
+   Form validation used by the Add-candidate and Detail modals.
+   Same rules as before, just written as plain if-checks.
+   ================================================================ */
+
 function validateCandidate(data) {
   const errors = {};
 

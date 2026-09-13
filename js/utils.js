@@ -1,3 +1,8 @@
+/* ================================================================
+   Small display helpers used by app.js. Kept plain and simple —
+   no chained array methods, just straightforward loops.
+   ================================================================ */
+
 function fmt(n) {
   if (!Number.isFinite(n)) return "\u2014";
   return n.toFixed(2);
@@ -14,6 +19,8 @@ function initials(name) {
   return result;
 }
 
+// Deterministic gradient per name so the same candidate always
+// gets the same avatar color.
 const PALETTE = [
   ["#2DD4BF", "#0f766e"],
   ["#60A5FA", "#1d4ed8"],

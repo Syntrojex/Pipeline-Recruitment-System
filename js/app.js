@@ -1,3 +1,11 @@
+/* ================================================================
+   VANILLA JS PORT of the React pipeline app.
+   Same model (pipeline.js), same rules, same UI/CSS — no React,
+   no build step. State lives in `state`; the DOM is rebuilt via
+   small template-string render functions per region, and events
+   are (re)wired after every render of that region.
+   ================================================================ */
+
 const STORAGE_KEY = "recruitment-pipeline:v1";
 
 function cryptoId() { return Math.random().toString(36).slice(2, 10); }
@@ -13,10 +21,14 @@ function loadInitialPipeline() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return RecruitmentPipeline.deserialize(raw);
   } catch {
+    /* fall through to seed */
   }
   return seedPipeline();
 }
 
+/* ---------------------------------------------------------------
+   STATE
+   --------------------------------------------------------------- */
 const state = {
   pipeline: loadInitialPipeline(),
   logs: [{ id: cryptoId(), kind: "info", text: "Pipeline loaded.", ts: nowStamp() }],
@@ -67,6 +79,9 @@ function report(result, extraLines) {
 function touch(id) { state.lastTouchedId = id; }
 function clearLastTouched() { state.lastTouchedId = null; }
 
+/* ---------------------------------------------------------------
+   ACTIONS (mirror PipelineContext's `actions` object 1:1)
+   --------------------------------------------------------------- */
 const actions = {
   addCandidate(stageName, data) {
     const r = state.pipeline.addCandidate(stageName, data);
@@ -145,6 +160,9 @@ const actions = {
   allStages() { return state.pipeline.allStages(); },
 };
 
+// Called after every mutating action: persists + re-renders the parts
+// of the UI that show live pipeline data (topbar/funnel, board, sidebar,
+// and whichever modal happens to be open).
 function bump() {
   persist();
   renderTopBar();
@@ -160,6 +178,9 @@ function renderAll() {
   renderModals();
 }
 
+/* ---------------------------------------------------------------
+   TOP BAR + FUNNEL
+   --------------------------------------------------------------- */
 function renderTopBar() {
   const stages = actions.allStages();
   const total = stages.reduce((s, st) => s + st.candidates.length, 0);
@@ -197,6 +218,9 @@ function renderFunnelHTML(stages, total) {
   return `<div class="funnel-wrap"><div class="funnel-track">${segs}</div><span class="funnel-hint">${total} in pipeline</span></div>`;
 }
 
+/* ---------------------------------------------------------------
+   BOARD + SIDEBAR
+   --------------------------------------------------------------- */
 function renderMain() {
   const stages = actions.allStages();
   const best = actions.getBestCandidate();
@@ -275,6 +299,10 @@ function wireBoardEvents() {
       clearLastTouched();
       openDetailModal(Number(card.dataset.id));
     });
+
+    // Touch devices don't fire HTML5 drag events at all, so cards are
+    // also made draggable by hand-tracking touch movement.
+    wireCardTouchDrag(card, board);
   });
 
   board.querySelectorAll(".column").forEach(col => {
@@ -290,6 +318,76 @@ function wireBoardEvents() {
       const id = Number(e.dataTransfer.getData("text/plain"));
       if (id) actions.moveCandidate(id, col.dataset.stage);
     });
+  });
+}
+
+// Manual touch-drag: mirrors the desktop dragstart/dragover/drop flow above,
+// but driven by touchstart/touchmove/touchend since those are what actually
+// fire on phones and tablets.
+function wireCardTouchDrag(card, board) {
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  let clone = null;
+  const id = Number(card.dataset.id);
+
+  card.addEventListener("touchstart", e => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dragging = false;
+  }, { passive: true });
+
+  card.addEventListener("touchmove", e => {
+    const touch = e.touches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+
+    if (!dragging) {
+      // Small movements are still just a tap/scroll — only start dragging
+      // once the finger has clearly moved.
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      dragging = true;
+      card.classList.add("dragging");
+
+      clone = card.cloneNode(true);
+      clone.style.position = "fixed";
+      clone.style.width = card.offsetWidth + "px";
+      clone.style.left = touch.clientX - card.offsetWidth / 2 + "px";
+      clone.style.top = touch.clientY - 24 + "px";
+      clone.style.zIndex = "200";
+      clone.style.pointerEvents = "none";
+      clone.style.opacity = "0.92";
+      clone.style.transform = "rotate(2deg)";
+      clone.style.boxShadow = "0 20px 40px -12px rgba(0,0,0,.6)";
+      document.body.appendChild(clone);
+    }
+
+    // Prevent the page from scrolling while a card is actively being dragged.
+    e.preventDefault();
+    clone.style.left = touch.clientX - card.offsetWidth / 2 + "px";
+    clone.style.top = touch.clientY - 24 + "px";
+
+    board.querySelectorAll(".column").forEach(c => c.classList.remove("drag-over"));
+    const under = document.elementFromPoint(touch.clientX, touch.clientY);
+    const col = under ? under.closest(".column") : null;
+    if (col) col.classList.add("drag-over");
+  }, { passive: false });
+
+  card.addEventListener("touchend", e => {
+    if (dragging) {
+      const touch = e.changedTouches[0];
+      const under = document.elementFromPoint(touch.clientX, touch.clientY);
+      const col = under ? under.closest(".column") : null;
+
+      if (clone) clone.remove();
+      card.classList.remove("dragging");
+      board.querySelectorAll(".column").forEach(c => c.classList.remove("drag-over"));
+
+      if (col) actions.moveCandidate(id, col.dataset.stage);
+    }
+    dragging = false;
+    clone = null;
   });
 }
 
@@ -348,6 +446,9 @@ function miniBarHTML(label, value, max, display) {
   `;
 }
 
+/* ---------------------------------------------------------------
+   CONSOLE DRAWER
+   --------------------------------------------------------------- */
 function renderConsole() {
   const el = document.getElementById("console-root");
   el.innerHTML = `
@@ -373,11 +474,17 @@ function toggleConsole() {
   renderConsole();
 }
 
+/* ---------------------------------------------------------------
+   TOASTS
+   --------------------------------------------------------------- */
 function renderToasts() {
   const el = document.getElementById("toast-root");
   el.innerHTML = `<div class="toast-stack">${state.toasts.map(t => `<div class="toast ${t.kind === "ok" ? "" : t.kind}">${escapeHtml(t.text)}</div>`).join("")}</div>`;
 }
 
+/* ---------------------------------------------------------------
+   MODALS (all four are always in the DOM; `open` class toggles them)
+   --------------------------------------------------------------- */
 function renderModals() {
   document.getElementById("modal-root").innerHTML =
     renderAddModalHTML() +
@@ -390,7 +497,7 @@ function renderModals() {
   wireAnalyzeModal();
 }
 
-
+/* ---- Add candidate ---- */
 function openAddModal() {
   const stages = actions.allStages();
   const maxId = stages.reduce((m, s) => s.candidates.reduce((mm, c) => Math.max(mm, c.id), m), 100);
@@ -536,6 +643,7 @@ function wireAddModal() {
   });
 }
 
+/* ---- Candidate detail ---- */
 function openDetailModal(id) {
   state.ui.openCandidateId = id;
   const stages = actions.allStages();
@@ -931,6 +1039,9 @@ function runAnalyzeOp(id) {
   renderModals();
 }
 
+/* ---------------------------------------------------------------
+   GLOBAL: Escape closes whichever modal(s) are open
+   --------------------------------------------------------------- */
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if (state.ui.addOpen) closeAddModal();
@@ -939,4 +1050,7 @@ document.addEventListener("keydown", e => {
   if (state.ui.analyzeOpen) closeAnalyzeModal();
 });
 
+/* ---------------------------------------------------------------
+   BOOT
+   --------------------------------------------------------------- */
 renderAll();
