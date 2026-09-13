@@ -1,3 +1,6 @@
+/* ============================================================
+   TOKENS
+   ============================================================ */
 :root{
   --bg:            #0A0E14;
   --bg-grid:       #0D131C;
@@ -52,6 +55,9 @@ input, select, textarea{ font-family:var(--font-body); }
 
 .app-shell{ height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 
+/* ============================================================
+   TOP BAR
+   ============================================================ */
 .topbar{
   height:64px; flex-shrink:0;
   display:flex; align-items:center; gap:20px; padding:0 20px;
@@ -117,6 +123,9 @@ input, select, textarea{ font-family:var(--font-body); }
 .btn-block{ width:100%; justify-content:center; }
 .btn-sm{ padding:6px 11px; font-size:12px; }
 
+/* ============================================================
+   MAIN LAYOUT — board + sidebar
+   ============================================================ */
 .main-layout{ flex:1; display:flex; min-height:0; min-width:0; }
 
 .board-wrap{
@@ -191,6 +200,9 @@ input, select, textarea{ font-family:var(--font-body); }
 .board-empty{ display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-low); gap:10px; text-align:center; }
 .board-empty h3{ font-family:var(--font-head); color:var(--text-mid); font-weight:600; font-size:15px; margin:0; }
 
+/* ============================================================
+   SIDEBAR — spotlight + quick stats
+   ============================================================ */
 .sidebar{
   width:var(--sidebar-w); flex-shrink:0; border-left:1px solid var(--border-soft);
   background:rgba(12,17,26,.6); padding:18px; overflow-y:auto; overflow-x:hidden;
@@ -225,6 +237,9 @@ input, select, textarea{ font-family:var(--font-body); }
 .crowded-note{ font-size:11.5px; color:var(--text-mid); background:var(--surface-2); border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:11px 12px; overflow-wrap:break-word; }
 .crowded-note b{ color:var(--gold); }
 
+/* ============================================================
+   CONSOLE DRAWER
+   ============================================================ */
 .console-drawer{
   position:fixed; left:0; right:0; bottom:0; height:270px; background:#070A0F;
   border-top:1px solid var(--border); transform:translateY(100%); transition:transform .25s ease;
@@ -245,6 +260,9 @@ input, select, textarea{ font-family:var(--font-body); }
 .log-line.err{ color:#F2545B; }
 .log-line.info{ color:var(--text-mid); }
 
+/* ============================================================
+   MODALS
+   ============================================================ */
 .modal-overlay{
   position:fixed; inset:0; background:rgba(4,6,10,.65); backdrop-filter:blur(3px);
   display:flex; align-items:flex-start; justify-content:center; z-index:80; padding:20px; overflow-y:auto;
@@ -330,17 +348,45 @@ input, select, textarea{ font-family:var(--font-body); }
 .toast.warn{ border-left-color:var(--gold); }
 @keyframes toastIn{ from{ opacity:0; transform:translateX(12px);} to{ opacity:1; transform:translateX(0);} }
 
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
 @media (max-width:960px){
   .sidebar{ display:none; }
 }
+
 @media (max-width:760px){
-  .topbar{ gap:10px; padding:0 12px; }
+  .topbar{
+    height:auto; min-height:56px; flex-wrap:wrap; row-gap:8px; padding:10px 12px;
+  }
   .brand-text p{ display:none; }
   .funnel-wrap{ display:none; }
-  .board-wrap{ padding:14px; }
-  .column{ width:78vw; }
-  .console-drawer{ height:60vh; }
+
+  /* action buttons: never clip — wrap, and scroll sideways if still tight */
+  .topbar-actions{
+    order:2; flex-basis:100%; width:100%;
+    overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch;
+    padding-bottom:2px;
+  }
+  .topbar-actions::-webkit-scrollbar{ display:none; }
+  .topbar-actions .btn{ flex-shrink:0; padding:8px 12px; font-size:12.5px; white-space:nowrap; }
+
+  .board-wrap{ padding:14px 10px; }
+  .column{ width:82vw; }
+  .console-drawer{ height:70vh; }
+
+  .modal-overlay{ padding:12px; align-items:center; }
+  .modal{ margin-top:0; max-height:92vh; overflow-y:auto; }
 }
+
+@media (max-width:480px){
+  .field-row{ flex-direction:column; gap:0; }
+  .field-row .field{ margin-bottom:14px; }
+  .field-row .field:last-child{ margin-bottom:0; }
+  .detail-metrics{ gap:6px; }
+  .stat-tiles{ gap:8px; }
+}
+
 @media (prefers-reduced-motion: reduce){
   *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
 }
