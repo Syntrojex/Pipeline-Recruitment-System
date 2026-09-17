@@ -47,6 +47,7 @@ const state = {
     analyzeSkill: "",
     analyzeOutput: null,
     consoleOpen: false,
+    activeStage: null, // which stage's column is shown on the mobile tab view
   },
 };
 
@@ -238,13 +239,30 @@ function renderBoardHTML(stages, crowded, bestId) {
   if (stages.length === 0) {
     return `<div class="board-wrap"><div class="board-empty"><h3>No stages yet</h3><p>Use the Stages panel to build a pipeline.</p></div></div>`;
   }
+
+  // Which stage is shown on the mobile tab view. Falls back to the first
+  // stage if none is set yet, or if the remembered one no longer exists
+  // (renamed/removed/reversed).
+  let activeFound = false;
+  for (let i = 0; i < stages.length; i++) {
+    if (stages[i].name === state.ui.activeStage) { activeFound = true; break; }
+  }
+  if (!activeFound) state.ui.activeStage = stages[0].name;
+
+  const tabs = stages.map(s => `
+    <button class="stage-tab ${s.name === state.ui.activeStage ? "active" : ""}" data-tab-stage="${escapeAttr(s.name)}">
+      ${escapeHtml(s.name)} <span class="stage-tab-count">${s.candidates.length}</span>
+    </button>
+  `).join("");
+
   const cols = stages.map((stage, i) => {
     const isCrowded = crowded === stage && stage.candidates.length > 0;
+    const isActive = stage.name === state.ui.activeStage;
     const cards = stage.candidates.length === 0
       ? `<div class="column-empty">No candidates in this stage</div>`
       : stage.candidates.map(c => renderCardHTML(c, c.id === bestId)).join("");
     return `
-      <div class="column col-enter ${isCrowded ? "crowded" : ""}" style="animation-delay:${i * 55}ms" data-stage="${escapeAttr(stage.name)}">
+      <div class="column col-enter ${isCrowded ? "crowded" : ""} ${isActive ? "active" : ""}" style="animation-delay:${i * 55}ms" data-stage="${escapeAttr(stage.name)}">
         <div class="column-head">
           <span class="column-title">${escapeHtml(stage.name)}</span>
           <span class="column-count">${stage.candidates.length}</span>
@@ -253,7 +271,8 @@ function renderBoardHTML(stages, crowded, bestId) {
       </div>
     `;
   }).join("");
-  return `<div class="board-wrap"><div class="board">${cols}</div></div>`;
+
+  return `<div class="board-wrap"><div class="stage-tabs">${tabs}</div><div class="board">${cols}</div></div>`;
 }
 
 function renderCardHTML(c, isBest) {
@@ -284,6 +303,16 @@ function renderCardHTML(c, isBest) {
 function wireBoardEvents() {
   const board = document.querySelector("#main-root .board");
   if (!board) return;
+
+  const boardWrap = document.querySelector("#main-root .board-wrap");
+  if (boardWrap) {
+    boardWrap.querySelectorAll(".stage-tab").forEach(tab => {
+      tab.onclick = () => {
+        state.ui.activeStage = tab.dataset.tabStage;
+        renderMain();
+      };
+    });
+  }
 
   board.querySelectorAll(".card").forEach(card => {
     card.addEventListener("dragstart", e => {
