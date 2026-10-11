@@ -398,9 +398,16 @@ function wireCardTouchDrag(card, board) {
     clone.style.top = touch.clientY - 24 + "px";
 
     board.querySelectorAll(".column").forEach(c => c.classList.remove("drag-over"));
+    document.querySelectorAll(".stage-tab").forEach(t => t.classList.remove("drag-over"));
+
     const under = document.elementFromPoint(touch.clientX, touch.clientY);
     const col = under ? under.closest(".column") : null;
+    // On the mobile tabbed view only the active stage's column is visible,
+    // so the stage tabs themselves become the reachable drop target for
+    // moving a candidate into a different stage.
+    const tab = under ? under.closest(".stage-tab") : null;
     if (col) col.classList.add("drag-over");
+    if (tab) tab.classList.add("drag-over");
   }, { passive: false });
 
   card.addEventListener("touchend", e => {
@@ -408,12 +415,21 @@ function wireCardTouchDrag(card, board) {
       const touch = e.changedTouches[0];
       const under = document.elementFromPoint(touch.clientX, touch.clientY);
       const col = under ? under.closest(".column") : null;
+      const tab = under ? under.closest(".stage-tab") : null;
 
       if (clone) clone.remove();
       card.classList.remove("dragging");
       board.querySelectorAll(".column").forEach(c => c.classList.remove("drag-over"));
+      document.querySelectorAll(".stage-tab").forEach(t => t.classList.remove("drag-over"));
 
-      if (col) actions.moveCandidate(id, col.dataset.stage);
+      const destStage = tab ? tab.dataset.tabStage : (col ? col.dataset.stage : null);
+      if (destStage) {
+        // Jump the mobile view to wherever the candidate just landed, so the
+        // move is visible immediately instead of leaving the user on the
+        // now-empty old stage. moveCandidate() itself raises the toast.
+        state.ui.activeStage = destStage;
+        actions.moveCandidate(id, destStage);
+      }
     }
     dragging = false;
     clone = null;
