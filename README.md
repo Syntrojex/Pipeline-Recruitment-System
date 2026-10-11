@@ -14,3 +14,13 @@
 </div>
 
 ---
+
+## 📌 Overview
+
+**Pipeline** is a recruitment management system originally developed as a Data Structures and Algorithms (DSA) assignment in C++. This project reimplements the same core logic in JavaScript while preserving the original approach to data organization, linked-list traversal, candidate management, and recruitment-stage operations.
+
+Instead of relying on a frontend framework or replacing the underlying algorithms with built-in shortcuts, the implementation uses straightforward loops, explicit conditions, and a manually managed singly linked list of recruitment stages.
+
+The result is a functional, interactive recruitment tracker that connects fundamental DSA concepts with a practical, browser-based application.
+
+---
